@@ -1,0 +1,20 @@
+[tool.poetry]
+name = "fastapi-sqlmodel-docker"
+version = "0.1.0"
+description = ""
+authors = ["AlexanderG1999 <95202925+AlexanderG1999@users.noreply.github.com>"]
+readme = "README.md"
+packages = [{include = "fastapi_sqlmodel_docker"}]
+
+[tool.poetry.dependencies]
+python = ">=3.10,<3.11"
+transformers = {extras = ["sentencepiece"], version = "^4.27.2"}
+datasets = "^2.10.1"
+tensorflow = "2.8.0"
+fastapi = "^0.95.0"
+uvicorn = "^0.21.1"
+
+
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"
