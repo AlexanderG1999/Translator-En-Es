@@ -41,6 +41,7 @@ async def lifespan(app: FastAPI):
     # Clean up the models and release the resources
     translator_models.clear()
 
+
 def get_user(db, username: str):
     if username in db:
         user_data = db[username]
