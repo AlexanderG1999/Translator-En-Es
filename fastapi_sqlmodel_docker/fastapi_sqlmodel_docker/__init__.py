@@ -2,25 +2,35 @@ from fastapi import FastAPI, Depends, HTTPException
 from transformers import pipeline
 from fastapi.security import OAuth2PasswordBearer, OAuth2PasswordRequestForm
 from UserInDB import UserInDB
+from User import User
 from passlib.context import CryptContext
 from datetime import datetime, timedelta
 from typing import Union
 from contextlib import asynccontextmanager
-#from jose import JWTError, jwt
+import os, dotenv
+from jose import JWTError, jwt
+
+
+translator_models = {}
+# Load environment variables
+dotenv.load_dotenv()
+SECRET_KEY = os.getenv("SECRET_KEY")
+ALGORITHM = "HS256"
+
+oauth2_scheme = OAuth2PasswordBearer("/token")
+pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
+
 
 authorized_users = {
     "johndoe": {
         "username": "johndoe",
         "full_name": "John Doe",
         "email": "johndoe@example.com",
-        "hashed_password": "$2a$12$F0xqCui75b8yXvi42J6PFuIAHXhBryMjDE/3OwLxyPDB91FyrLEzq",
+        "hashed_password": os.getenv("PASSWORD"),
         "disabled": False,
     }
 }
 
-#SECRET_KEY = "secret_key"
-#ALGORITHM = "HS256"
-translator_models = {}
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
@@ -45,13 +55,13 @@ def verify_password(plain_password, hashed_password):
 def authenticate_user(db, username: str, password: str):
     user = get_user(db, username)
     if not user:
-        raise HTTPException(status_code=400, detail="Could not validate credentials", headers={"WWW-Authenticate": "Bearer"})
+        raise HTTPException(status_code=401, detail="Could not validate credentials", headers={"WWW-Authenticate": "Bearer"})
     if not verify_password(password, user.hashed_password):
-        raise HTTPException(status_code=400, detail="Could not validate credentials", headers={"WWW-Authenticate": "Bearer"})
+        raise HTTPException(status_code=401, detail="Could not validate credentials", headers={"WWW-Authenticate": "Bearer"})
     return user
 
 
-'''def create_token(data: dict, time_expire: Union[datetime, None] = None):
+def create_token(data: dict, time_expire: Union[datetime, None] = None):
     data_copy = data.copy()
     if time_expire is None:
         expires = datetime.utcnow() + timedelta(minutes=15)
@@ -59,7 +69,29 @@ def authenticate_user(db, username: str, password: str):
         expires = datetime.utcnow() + time_expire
     data_copy.update({"exp": expires})
     token_jwt = jwt.encode(data_copy, key=SECRET_KEY, algorithm=ALGORITHM)
-    return token_jwt'''
+    return token_jwt
+
+
+def get_current_user(token: str = Depends(oauth2_scheme)):
+    try:
+        token_decode = jwt.decode(token, key=SECRET_KEY, algorithms=[ALGORITHM])
+        username = token_decode.get("sub")
+        if username == None:
+            raise HTTPException(status_code=401, detail="Could not validate credentials", headers={"WWW-Authenticate": "Bearer"})
+    except JWTError:
+        raise HTTPException(status_code=401, detail="Could not validate credentials", headers={"WWW-Authenticate": "Bearer"})
+    
+    user = get_user(authorized_users, username)
+    if not user:
+        raise HTTPException(status_code=401, detail="Could not validate credentials", headers={"WWW-Authenticate": "Bearer"})
+    
+    return user
+
+
+def get_user_disable_current(user: User = Depends(get_current_user)):
+    if user.disabled:
+        raise HTTPException(status_code=400, detail="Inactive user")
+    return user
 
 
 def model1_en_es(text: str) -> str:
@@ -72,17 +104,14 @@ def model2_es_en(text: str) -> str:
 
 app = FastAPI(lifespan=lifespan)
 
-oauth2_scheme = OAuth2PasswordBearer("/token")
-
-pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 
 @app.get("/")
 async def root():
     return {"Message": "Hello World"}
 
 @app.get("/users/me")
-async def user_me(token: str = Depends(oauth2_scheme)):
-    return "I am an User"
+async def user(user: User = Depends(get_user_disable_current)):
+    return user
 
 @app.get("/translation-en-es/{text}")
 async def translation_model1(text: str, token: str = Depends(oauth2_scheme)):
@@ -95,10 +124,10 @@ async def translation_model2(text: str, token: str = Depends(oauth2_scheme)):
 @app.post("/token")
 def login(form_data: OAuth2PasswordRequestForm = Depends()):
     user = authenticate_user(authorized_users, form_data.username, form_data.password)
-    #access_token_expires = timedelta(minutes=30)
-    #access_token_jwt = create_token({"sub": user.username}, access_token_expires)
+    access_token_expires = timedelta(minutes=30)
+    access_token_jwt = create_token({"sub": user.username}, access_token_expires)
 
     return {
-        "access_token": "fake-jwt-token",
+        "access_token": access_token_jwt,
         "token_type": "bearer",
     }
