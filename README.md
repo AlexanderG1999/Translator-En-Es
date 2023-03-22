@@ -10,7 +10,7 @@ The project currently does not work with a database model nor is it containerize
 
 ## Chosen Models
 
-- Helsinki-NLP/opus-mt-en-es
+- https://huggingface.co/Helsinki-NLP/opus-mt-en-es
 
 ## Clone de project
 
