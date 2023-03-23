@@ -112,7 +112,7 @@ async def root():
 
 @app.get("/users/me")
 async def user(user: User = Depends(get_user_disable_current)):
-    return user
+    return {"username:" : user.username, "full_name": user.full_name, "email": user.email, "disabled": user.disabled}
 
 @app.get("/translation-en-es/{text}")
 async def translation_model1(text: str, token: str = Depends(oauth2_scheme)):
