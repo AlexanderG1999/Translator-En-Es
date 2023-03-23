@@ -123,7 +123,7 @@ async def translation_model2(text: str, token: str = Depends(oauth2_scheme)):
     return {"Spanish to English": model2_es_en(text)}
 
 @app.post("/token")
-def login(form_data: OAuth2PasswordRequestForm = Depends()):
+async def login(form_data: OAuth2PasswordRequestForm = Depends()):
     user = authenticate_user(authorized_users, form_data.username, form_data.password)
     access_token_expires = timedelta(minutes=30)
     access_token_jwt = create_token({"sub": user.username}, access_token_expires)
